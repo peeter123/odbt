@@ -1,0 +1,13 @@
+version: "3"
+services:
+    odbt:
+        image: "odbt:dev"
+        build:
+            context: .
+            dockerfile: Dockerfile
+        hostname: odbt
+        stdin_open: true
+        tty: true
+        working_dir: '/odbt-dev'
+        volumes:
+            - ".:/odbt-dev"

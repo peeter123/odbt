@@ -1,0 +1,8 @@
+cement==3.0.0
+jinja2
+pyyaml
+colorlog
+octopart
+pyodbc
+selenium
+fake-useragent

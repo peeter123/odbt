@@ -1,0 +1,9 @@
+# IDE Data
+.idea/
+
+# Application YML files
+config/*.yml
+
+# Python temp files
+*.egg-info
+env/
