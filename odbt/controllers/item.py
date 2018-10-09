@@ -63,15 +63,22 @@ class Item(Controller):
 
         self.app.render(data, 'command1.jinja2')
 
-    def search(self):
-        """ Search table with query and list results"""
+    @ex(
+        help='search Octopart and list results',
+        arguments=[
+            ( ['query'],
+              {'help': 'todo item database id',
+              'action': 'store' } ),
+        ],
+    )
+    def query(self):
+        """ Search octopart with query and list results"""
 
-        data = {
-            'foo' : 'bar',
-        }
+        if self.app.pargs.query is not None:
+            query = self.app.pargs.query
+            self.app.log.info("Searching for: " + query)
 
-        ### do something with arguments
-        if self.app.pargs.foo is not None:
-            data['foo'] = self.app.pargs.foo
-
-        self.app.render(data, 'command1.jinja2')
+            # Query Octopart
+            search = self.app.octo.search(query, includes=['datasheets', 'short_description', 'description', 'specs'])
+            print(search)
+            #self.app.render(data, 'command1.jinja2')

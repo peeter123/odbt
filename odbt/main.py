@@ -43,6 +43,18 @@ def extend_access_db(app):
 
     app.extend('db', crsr)
 
+def extend_octopart_api(app):
+    # Get the API key from the configuration store
+    api_key = app.config.get('odbt', 'octopart_api_key')
+
+    try:
+        octo = octopart.api.OctopartClient(api_key=api_key)
+    except ValueError as e:
+        print(e)
+        exit(1)
+    else:
+        app.extend('octo', octo)
+
 class Odbt(App):
     """Octopart DBlib Tools primary application."""
 
@@ -65,6 +77,7 @@ class Odbt(App):
 
         hooks = [
             ('post_setup', extend_access_db),
+            ('post_setup', extend_octopart_api),
         ]
 
         # configuration handler
