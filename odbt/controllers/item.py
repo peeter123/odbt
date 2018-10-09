@@ -1,3 +1,4 @@
+import re
 from cement import Controller, ex
 
 class Item(Controller):
@@ -24,31 +25,66 @@ class Item(Controller):
 
         self.app.args.print_help()
 
-
     @ex(
         help='Add an item to the database in a specific table',
 
         # sub-command level arguments. ex: 'odbt command1 --foo bar'
         arguments=[
-            ### add a sample foo option under subcommand namespace
+            ( ['query'],
+              {'help': 'search query for Octopart',
+              'action': 'store' } ),
             ( [ '-t', '--table' ],
               { 'help' : 'The table where the item should be stored',
                 'action'  : 'store',
-                'dest' : 'foo' } ),
+                'dest' : 'table' } ),
         ],
     )
     def add(self):
-        """Example sub-command."""
+        """ Search octopart with query and interactively add result"""
 
-        data = {
-            'foo' : 'bar',
-        }
+        # Get the table list from the database
+        table_list = list(self.app.db.tables(tableType='TABLE'))
+        if self.app.pargs.table is None:
+            self.app.print('Please provide the table to add the component to')
+            self.app.exit_code = 1
+            self.app.close()
 
-        ### do something with arguments
-        if self.app.pargs.foo is not None:
-            data['foo'] = self.app.pargs.foo
+        if self.app.pargs.query is not None:
+            query = self.app.pargs.query
+            self.app.print("Searching for: " + query)
 
-        self.app.render(data, 'command1.jinja2')
+            # Query Octopart with a simple search
+            search = self.app.octo.search(query, limit=10)
+            results = search['results']
+
+            # List results and pick one to add to the database
+            if len(results) == 0:
+                self.app.print('No results found')
+                self.app.exit_code = 1
+                self.app.close()
+            else:
+                self.app.render({'results': results}, 'search-list-result.jinja2')
+                self.app.print('Pick a [number]: ')
+                choice_word = input()
+                if choice_word.isdecimal():
+                    choice_index = int(choice_word)
+                    if 0 <= choice_index <= 9:
+                        self.app.print('Chosen: {} {} (UID {})'.format(
+                            results[choice_index]['item']['brand']['name'],
+                            results[choice_index]['item']['mpn'],
+                            results[choice_index]['item']['uid']))
+                        uid = results[choice_index]['item']['uid']
+                    else:
+                        self.app.print('No such variant')
+                        self.app.exit_code = 1
+                        self.app.close()
+                else:
+                    # No number given, exit application
+                    self.app.exit_code = 1
+                    self.app.close()
+
+            # Query Octopart with an uid to get the single part which was requested
+            search = self.app.octo.part(uid, includes=['datasheets', 'short_description', 'description', 'specs'])
 
     def update(self):
         """Example sub-command."""
@@ -67,18 +103,24 @@ class Item(Controller):
         help='search Octopart and list results',
         arguments=[
             ( ['query'],
-              {'help': 'todo item database id',
+              {'help': 'search query for Octopart',
               'action': 'store' } ),
         ],
     )
-    def query(self):
+    def search(self):
         """ Search octopart with query and list results"""
 
         if self.app.pargs.query is not None:
             query = self.app.pargs.query
-            self.app.log.info("Searching for: " + query)
+            self.app.print("Searching for: " + query)
 
-            # Query Octopart
-            search = self.app.octo.search(query, includes=['datasheets', 'short_description', 'description', 'specs'])
-            print(search)
-            #self.app.render(data, 'command1.jinja2')
+            # Query Octopart with a simple search
+            search = self.app.octo.search(query, limit=10)
+            results = search['results']
+
+            if len(results) == 0:
+                self.app.print('No results found')
+                self.app.exit_code = 1
+                self.app.close()
+            else:
+                self.app.render({'results': results}, 'search-list-result.jinja2')

@@ -84,6 +84,7 @@ class Odbt(App):
             'json',
             'colorlog',
             'jinja2',
+            'print',
         ]
 
         hooks = [
@@ -115,6 +116,8 @@ class Odbt(App):
             Item,
             Table
         ]
+
+        exit_on_close = True
 
 class odbtTest(TestApp, Odbt):
     """A sub-class of odbt that is better suited for testing."""
