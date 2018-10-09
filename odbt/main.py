@@ -22,38 +22,49 @@ def extend_access_db(app):
         app.log.error("MS Database connector not installed, please install it before using this application")
         exit(1)
 
-    db_file = app.config.get('odbt', 'db_path')
-
-    # Ensure the database file is valid
-    db_file = Path(db_file)
-    if not os.path.isfile(db_file):
-        app.log.error("Database not found")
-        exit(1)
-
-    app.log.info('Access database file is: %s' % db_file)
-
-    conn_str = (
-        r'DRIVER={' + connector[0] + '};'
-        r'DBQ=' + str(db_file)
-    )
-    cnxn = pyodbc.connect(conn_str)
-    crsr = cnxn.cursor()
-    # for table_info in crsr.tables(tableType='TABLE'):
-    #     logging.INFO(table_info.table_name)
-
-    app.extend('db', crsr)
-
-def extend_octopart_api(app):
-    # Get the API key from the configuration store
-    api_key = app.config.get('odbt', 'octopart_api_key')
-
     try:
-        octo = octopart.api.OctopartClient(api_key=api_key)
-    except ValueError as e:
-        print(e)
+        db_file = app.config.get('odbt', 'db_path')
+    except Exception as e:
+        print('Config error: {0}'.format(e))
+        print('Please make sure your config file exists and has a database path defined')
         exit(1)
     else:
-        app.extend('octo', octo)
+        # Ensure the database file is valid
+        db_file = Path(db_file)
+        if not os.path.isfile(db_file):
+            print("Database not found")
+            exit(1)
+
+        app.log.debug('Access database file is: %s' % db_file)
+
+        conn_str = (
+            r'DRIVER={' + connector[0] + '};'
+            r'DBQ=' + str(db_file)
+        )
+        cnxn = pyodbc.connect(conn_str)
+        crsr = cnxn.cursor()
+        # for table_info in crsr.tables(tableType='TABLE'):
+        #     logging.INFO(table_info.table_name)
+
+        app.extend('db', crsr)
+
+
+def extend_octopart_api(app):
+    try:
+        # Get the API key from the configuration store
+        api_key = app.config.get('odbt', 'octopart_api_key')
+    except Exception as e:
+        print('Config error: {0}'.format(e))
+        print('Please make sure your config file exists and has an API key')
+        exit(1)
+    else:
+        try:
+            octo = octopart.api.OctopartClient(api_key=api_key)
+        except ValueError as e:
+            print(e)
+            exit(1)
+        else:
+            app.extend('octo', octo)
 
 class Odbt(App):
     """Octopart DBlib Tools primary application."""
@@ -104,8 +115,6 @@ class Odbt(App):
             Item,
             Table
         ]
-
-        debug = True
 
 class odbtTest(TestApp, Odbt):
     """A sub-class of odbt that is better suited for testing."""
