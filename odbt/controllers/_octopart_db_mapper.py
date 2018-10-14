@@ -35,6 +35,7 @@ common_col_names = \
         'Tolerance',
         'Voltage Rating',
         'Material Type',
+        'Case Style',
         'HelpURL',
         'ComponentLink1Description',
         'ComponentLink1URL',
@@ -90,8 +91,11 @@ class OctopartDBMapper:
         return None
 
     def _get_component_categories(self, octo: octomodels.Part):
-        for category_uid in octo.category_uids:
-            self.categories.append(octopart.get_category(category_uid))
+        try:
+            for category_uid in octo.category_uids:
+                self.categories.append(octopart.get_category(category_uid))
+        except KeyError:
+            pass
 
     def _purge_empty_keys(self, dictionary: dict):
         # Purge empty columns from mapping
@@ -170,8 +174,9 @@ class OctopartDBMapper:
         else:
             # Cleanup
             self.app.print("No add, cleanup...")
-            self.app.print("Remove downloaded datasheet")
-            self.datasheet_file.unlink()
+            if self.dbmapping_new['HelpURL'] is not None:
+                self.app.print("Remove downloaded datasheet")
+                self.datasheet_file.unlink()
 
     def populate_original_data(self, sql_id):
         query = 'SELECT * FROM {0} WHERE ID={1}'.format(self.table, sql_id)
@@ -208,6 +213,10 @@ class OctopartDBMapper:
         if 'Aluminum Electrolytic Capacitors' in [c.name for c in self.categories]:
             self._update_if_empty('Library_Ref', 'Capacitor Polarized')
 
+            if 'dielectric_material' in octo.specs.keys():
+                value = octo.specs['dielectric_material'].value[0]
+                self._update_if_empty('Material_Type', value.upper())
+
         if 'Capacitors' in [c.name for c in self.categories]:
             self._update_if_empty('Library_Ref', 'Capacitor')
 
@@ -225,11 +234,14 @@ class OctopartDBMapper:
                 value = octo.specs['capacitance_tolerance'].value[0]
                 self._update_if_empty('Tolerance', value)
 
-            if 'dielectric_material' in octo.specs.keys():
-                value = octo.specs['dielectric_material'].value[0]
+            if 'dielectric_characteristic' in octo.specs.keys():
+                value = octo.specs['dielectric_characteristic'].value[0]
                 self._update_if_empty('Material_Type', value.upper())
 
-            pass
+            if 'case_package' in octo.specs.keys():
+                value = octo.specs['case_package'].value[0]
+                self._update_if_empty('Case_Style', value)
+                self._update_if_empty('Footprint_Ref', 'C-{}'.format(value))
 
     def suppliers(self, octo: octomodels.Part):
         """ Populate supplier fields in the database dict and try to search for links """
