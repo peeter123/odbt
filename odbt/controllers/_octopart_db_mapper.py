@@ -9,6 +9,7 @@ from selenium import webdriver
 from cement import App, shell
 from fake_useragent import UserAgent
 from ._utils import Utils
+from google import google
 
 common_col_names = \
        ('ID',
@@ -79,6 +80,9 @@ class OctopartDBMapper:
                     browser.quit()
                     return url
                 time.sleep(1)
+        elif supplier.seller == 'Digi-Key':
+            result = google.search('{} - {}'.format(supplier.seller, supplier.sku))
+            return result[0].link
         # Fallback to Octopart redirect URL
         else:
             return supplier.product_url
