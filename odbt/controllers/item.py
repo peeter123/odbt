@@ -160,11 +160,10 @@ class Item(Controller):
                     self.app.close()
 
             # Query Octopart with an uid to get the single part which was requested
-            part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs'])
+            part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs', 'category_uids'])
             odbm.spec(part)
             odbm.suppliers(part)
-            if odbm.dbmapping_original['HelpURL'] is None:
-                odbm.datasheet(part)
+            odbm.datasheet(part)
             odbm.update_item_database()
             pass
         else:

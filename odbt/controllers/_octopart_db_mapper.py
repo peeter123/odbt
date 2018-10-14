@@ -1,5 +1,6 @@
 import os, time, re
 import requests
+import octopart
 from tabulate import tabulate
 from pathlib import Path
 from octopart import models as octomodels
@@ -7,6 +8,7 @@ from datetime import datetime
 from selenium import webdriver
 from cement import App, shell
 from fake_useragent import UserAgent
+from ._utils import Utils
 
 common_col_names = \
        ('ID',
@@ -29,6 +31,10 @@ common_col_names = \
         'Release Version',
         'Designer',
         'Creation Date',
+        'Value',
+        'Tolerance',
+        'Voltage Rating',
+        'Material Type',
         'HelpURL',
         'ComponentLink1Description',
         'ComponentLink1URL',
@@ -43,6 +49,9 @@ class OctopartDBMapper:
         self.config = app.config
         self.table = table
         self.datasheet_file = Path()
+
+        # Component categories
+        self.categories = []
 
         # Create dict from columns to map data on the database and store original data
         self.dbmapping_original = {}
@@ -80,6 +89,10 @@ class OctopartDBMapper:
 
         return None
 
+    def _get_component_categories(self, octo: octomodels.Part):
+        for category_uid in octo.category_uids:
+            self.categories.append(octopart.get_category(category_uid))
+
     def _purge_empty_keys(self, dictionary: dict):
         # Purge empty columns from mapping
         dictionary = {k: v for k, v in dictionary.items() if v}
@@ -93,6 +106,22 @@ class OctopartDBMapper:
 
         return {'dict': dictionary, 'keys': dictionary_keys, 'values': dictionary_values}
 
+    def _update_if_empty(self, key, value):
+        if self.dbmapping_original[key] is None:
+            self.dbmapping_new[key] = value
+
+    def _exists(self, key):
+        if self.dbmapping_original[key] is not None:
+            return True
+        else:
+            return False
+
+    def _empty(self, key):
+        if self.dbmapping_original[key] is not None:
+            return False
+        else:
+            return True
+
     def update_item_database(self):
         # Preview data
         headers = ['Key', 'Original Data', 'New Data']
@@ -101,7 +130,7 @@ class OctopartDBMapper:
             table.append((k, v, self.dbmapping_new[k]))
 
         self.app.print(tabulate(table, headers=headers))
-        accept = shell.Prompt("Execute component add?", options=['y', 'n']).prompt()
+        accept = shell.Prompt("Execute component update?", options=['y', 'n']).prompt()
 
         dbmapping_new = self._purge_empty_keys(self.dbmapping_new)
 
@@ -161,12 +190,46 @@ class OctopartDBMapper:
         """ Populate specification fields in the database dict """
         print('Filling specs ...')
 
+        # Get component categories
+        self._get_component_categories(octo)
+
         # Independent fields
-        self.dbmapping_new['Description'] = octo.short_description
-        self.dbmapping_new['Manufacturer_1'] = octo.manufacturer.upper()
-        self.dbmapping_new['Manufacturer_Part_Number_1'] = octo.mpn
-        self.dbmapping_new['Designer'] = 'P. Oostewechel'
-        self.dbmapping_new['Creation_Date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self._update_if_empty('Description', octo.short_description)
+        self._update_if_empty('Manufacturer_1', octo.manufacturer.upper())
+        self._update_if_empty('Manufacturer_Part_Number_1', octo.mpn)
+        self._update_if_empty('Designer', 'P. Oostewechel')
+        self._update_if_empty('Creation_Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+        # Optional fields
+        self.dbmapping_new['Status'] = octo.specs['lifecycle_status'].value[0] \
+            if 'lifecycle_status' in octo.specs.keys() else self.dbmapping_original['Status']
+
+        # Fields based on component type
+        if 'Aluminum Electrolytic Capacitors' in [c.name for c in self.categories]:
+            self._update_if_empty('Library_Ref', 'Capacitor Polarized')
+
+        if 'Capacitors' in [c.name for c in self.categories]:
+            self._update_if_empty('Library_Ref', 'Capacitor')
+
+            if 'capacitance' in octo.specs.keys():
+                value = octo.specs['capacitance'].value[0]
+                suffix = octo.specs['capacitance'].metadata['unit']['symbol']
+                self._update_if_empty('Value', Utils.eng_string(value, suffix=suffix))
+
+            if 'voltage_rating_dc' in octo.specs.keys():
+                value = octo.specs['voltage_rating_dc'].value[0]
+                suffix = octo.specs['voltage_rating_dc'].metadata['unit']['symbol']
+                self._update_if_empty('Voltage_Rating', Utils.eng_string(value, suffix=suffix))
+
+            if 'capacitance_tolerance' in octo.specs.keys():
+                value = octo.specs['capacitance_tolerance'].value[0]
+                self._update_if_empty('Tolerance', value)
+
+            if 'dielectric_material' in octo.specs.keys():
+                value = octo.specs['dielectric_material'].value[0]
+                self._update_if_empty('Material_Type', value.upper())
+
+            pass
 
     def suppliers(self, octo: octomodels.Part):
         """ Populate supplier fields in the database dict and try to search for links """
@@ -185,19 +248,19 @@ class OctopartDBMapper:
             # Populate data for first supplier
             self.dbmapping_new['Supplier_1'] = supplier_1
             self.dbmapping_new['ComponentLink1Description'] = '&{0!s} product page'.format(supplier_1)
-            if supplier_1_index is not None:
+            if supplier_1_index is not None and (self._empty('Supplier_Part_Number_1') or self._empty('ComponentLink1URL')):
                 self.dbmapping_new['Supplier_Part_Number_1'] = octo.offers[supplier_1_index].sku
                 self.dbmapping_new['ComponentLink1URL'] = self._fetch_supplier_link(octo.offers[supplier_1_index])
 
             # Populate data for second supplier
             self.dbmapping_new['Supplier_2'] = supplier_2
             self.dbmapping_new['ComponentLink2Description'] = '&{0!s} product page'.format(supplier_2)
-            if supplier_2_index is not None:
+            if supplier_2_index is not None and (self._empty('Supplier_Part_Number_2') or self._empty('ComponentLink2URL')):
                 self.dbmapping_new['Supplier_Part_Number_2'] = octo.offers[supplier_2_index].sku
                 self.dbmapping_new['ComponentLink2URL'] = self._fetch_supplier_link(octo.offers[supplier_2_index])
 
     def datasheet(self, octo: octomodels.Part):
-        if octo.datasheets is not None and len(octo.datasheets) != 0:
+        if octo.datasheets is not None and len(octo.datasheets) != 0 and self._empty('HelpURL'):
             # Only use PDF datasheets
             datasheets = [d for d in octo.datasheets if re.match('.*\.pdf$', d)]
 
