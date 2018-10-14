@@ -1,3 +1,5 @@
 Search Results:
-{% for result in results %} [{{ loop.index0 }}] {{ result.item.brand.name }} {{ result.item.mpn }} {{ result.snippet }}
+{% for result in results %} [{{ loop.index0 }}] {{ result.manufacturer }} {{ result.mpn }} {{ result.short_description }}
+    {% for offer in result.offers[:5] %} {{ offer.seller }} | {{ offer.sku }} [{{ offer.in_stock_quantity }}]
+    {% endfor %}
 {% endfor %}

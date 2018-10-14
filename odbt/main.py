@@ -59,12 +59,10 @@ def extend_octopart_api(app):
         exit(1)
     else:
         try:
-            octo = octopart.api.OctopartClient(api_key=api_key)
+            os.environ['OCTOPART_API_KEY'] = api_key
         except ValueError as e:
             print(e)
             exit(1)
-        else:
-            app.extend('octo', octo)
 
 class Odbt(App):
     """Octopart DBlib Tools primary application."""

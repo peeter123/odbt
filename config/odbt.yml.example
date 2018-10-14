@@ -24,6 +24,15 @@ odbt:
   ### Altium DBLib Access Database path
   db_path: 'C:\DB Library\database.mdb'
 
+  ### Standard database fields
+  db_designer: 'peeter123'
+
+  ### Supplier choices for standard Altium database fields
+  db_supplier_1: 'Farnell'
+  db_supplier_1_base_url: 'https://nl.farnell.com/'
+  db_supplier_2: 'Digi-Key'
+  db_supplier_2_base_url: 'https://www.digikey.com/'
+
 log.colorlog:
   ### Where the log file lives (no log file by default)
   # file: null

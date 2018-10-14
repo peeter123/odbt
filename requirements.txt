@@ -6,3 +6,4 @@ octopart
 pyodbc
 selenium
 fake-useragent
+tabulate
