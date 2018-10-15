@@ -7,3 +7,4 @@ pyodbc
 selenium
 fake-useragent
 tabulate
+google-search-api
