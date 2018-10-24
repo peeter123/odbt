@@ -149,7 +149,7 @@ class OctopartDBMapper:
             # Create query from data list
             kv_pairs = ','.join(['[{0}]=\'{1}\''.format(str(k.replace('_', ' ')),
                                                         str(v)) for k, v in dbmapping_new['dict'].items()])
-            query = 'UPDATE {0} SET {1} WHERE ID={2}'.format(self.table, kv_pairs, sql_id)
+            query = 'UPDATE [{0}] SET {1} WHERE ID={2}'.format(self.table, kv_pairs, sql_id)
             self.app.db.execute(query)
             self.app.db.commit()
             self.app.print("Updating component in database")
@@ -169,7 +169,7 @@ class OctopartDBMapper:
 
         if accept == 'y':
             # Create query from data list
-            query = 'INSERT INTO {0} ([{1}]) VALUES (\'{2}\')'.format(self.table,
+            query = 'INSERT INTO [[0}] ([{1}]) VALUES (\'{2}\')'.format(self.table,
                                                                       '], ['.join(dbmapping_new['keys']),
                                                                       '\', \''.join(dbmapping_new['values']))
             self.app.db.execute(query)
