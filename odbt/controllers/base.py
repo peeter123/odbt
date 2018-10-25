@@ -17,7 +17,7 @@ class Base(Controller):
         description = 'Use Octopart to update and add componenta to an Altium DBlib'
 
         # text displayed at the bottom of --help output
-        epilog = 'Usage: odbt command1 --foo bar'
+        epilog = 'Usage: odbt [command]'
 
         # controller level arguments. ex: 'odbt --version'
         arguments = [

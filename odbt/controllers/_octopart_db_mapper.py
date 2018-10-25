@@ -207,7 +207,7 @@ class OctopartDBMapper:
 
     def spec(self, octo: octomodels.Part):
         """ Populate specification fields in the database dict """
-        print('Filling specs ...')
+        self.app.print('Filling specs ...')
 
         # Get component categories
         self._get_component_categories(octo)

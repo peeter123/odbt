@@ -13,13 +13,19 @@ class Item(Controller):
         description = 'Use Octopart to update and add componenta to an Altium DBlib'
 
         # text displayed at the bottom of --help output
-        epilog = 'Usage: odbt item --table Capacitors add'
+        epilog = 'Usage: odbt item -t Capacitors ...'
 
         # controller level arguments. ex: 'odbt --version'
         arguments = [
             ### add a version banner
-            ( [ '-t', '--table' ],
-              { 'action'  : 'version'} ),
+            (['-t', '--table'],
+             {'help': 'The table where the item should be stored',
+              'action': 'store',
+              'dest': 'table'}),
+            (['-y', '--non-interactive'],
+             {'help': 'Run in non-interactive mode',
+              'action': 'store_true',
+              'dest': 'non_interactive'}),
         ]
 
     def _default(self):
@@ -40,16 +46,10 @@ class Item(Controller):
 
     @ex(
         help='Add an item to the database in a specific table',
-
-        # sub-command level arguments. ex: 'odbt command1 --foo bar'
         arguments=[
-            ( ['query'],
-              {'help': 'search query for Octopart',
-              'action': 'store' } ),
-            ( [ '-t', '--table' ],
-              { 'help' : 'The table where the item should be stored',
-                'action'  : 'store',
-                'dest' : 'table' } ),
+            (['query'],
+             {'help': 'Search query for Octopart',
+             'action': 'store'}),
         ],
     )
     def add(self):
@@ -103,22 +103,12 @@ class Item(Controller):
 
     @ex(
         help='Update an item in a specific table',
-
-        # sub-command level arguments. ex: 'odbt command1 --foo bar'
         arguments=[
              (['sql_id'],
-              {'help': 'item id to update',
+              {'help': 'Item id to update',
                'action': 'store'}),
-             (['-t', '--table'],
-              {'help': 'The table where the item should be stored',
-               'action': 'store',
-               'dest': 'table'}),
-             (['-y', '--non-interactive'],
-              {'help': 'Run in non-interactive mode',
-               'action': 'store_true',
-               'dest': 'non_interactive'}),
              (['-s', '--start'],
-              {'help': 'Start ID in the database',
+              {'help': 'Start with this ID in table',
                'action': 'store',
                'dest': 'start'}),
         ],
@@ -199,11 +189,11 @@ class Item(Controller):
 
 
     @ex(
-        help='search Octopart and list results',
+        help='Search Octopart and list results',
         arguments=[
-            ( ['query'],
-              {'help': 'search query for Octopart',
-              'action': 'store' } ),
+            (['query'],
+             {'help': 'Search query for Octopart',
+             'action': 'store'}),
         ],
     )
     def search(self):
@@ -214,7 +204,7 @@ class Item(Controller):
             self.app.print("Searching for: " + query)
 
             # Query Octopart with a simple search
-            search = octopart.search(query, limit=10, include_descriptions=True)
+            search = octopart.search(query, limit=10, include_short_description=True)
             results = search.parts
 
             if len(results) == 0:

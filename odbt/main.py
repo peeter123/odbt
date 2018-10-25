@@ -43,9 +43,6 @@ def extend_access_db(app):
         )
         cnxn = pyodbc.connect(conn_str)
         crsr = cnxn.cursor()
-        # for table_info in crsr.tables(tableType='TABLE'):
-        #     logging.INFO(table_info.table_name)
-
         app.extend('db', crsr)
 
 
