@@ -113,6 +113,14 @@ class Item(Controller):
               {'help': 'The table where the item should be stored',
                'action': 'store',
                'dest': 'table'}),
+             (['-y', '--non-interactive'],
+              {'help': 'Run in non-interactive mode',
+               'action': 'store_true',
+               'dest': 'non_interactive'}),
+             (['-s', '--start'],
+              {'help': 'Start ID in the database',
+               'action': 'store',
+               'dest': 'start'}),
         ],
     )
     def update(self):
@@ -120,52 +128,71 @@ class Item(Controller):
         self._check_table_valid()
         odbm = OctopartDBMapper(self.app, self.app.pargs.table)
 
+        start = None
+        if self.app.pargs.start is not None:
+            start = int(self.app.pargs.start)
+
         if self.app.pargs.sql_id is not None:
             sql_id = self.app.pargs.sql_id
-            self.app.print("Updating: " + sql_id)
 
-            # Store original data
-            odbm.populate_original_data(sql_id=sql_id)
-
-            # Query Octopart with a simple search
-            search_string = odbm.dbmapping_original['Manufacturer_1'] + ' ' + \
-                            odbm.dbmapping_original['Manufacturer_Part_Number_1']
-            search = octopart.search(search_string, limit=10, include_short_description=True)
-            results = search.parts
-
-            # List results and pick one to add to the database
-            if len(results) == 0:
-                self.app.print('No results found')
-                self.app.exit_code = 1
-                self.app.close()
+            if sql_id == 'all':
+                if start is not None:
+                    query = 'SELECT * FROM {0} where ID >={1}'.format(self.app.pargs.table, start)
+                else:
+                    query = 'SELECT * FROM {0}'.format(self.app.pargs.table)
+                self.app.db.execute(query)
+                rows = self.app.db.fetchall()
+                data = [x.ID for x in rows]
             else:
-                self.app.render({'results': results}, 'search-list-result.jinja2')
-                self.app.print('Pick a [number]: ')
-                choice_word = input()
-                if choice_word.isdecimal():
-                    choice_index = int(choice_word)
-                    if 0 <= choice_index <= 9:
-                        self.app.print('Chosen: {} {} (UID {})'.format(
-                            results[choice_index].manufacturer,
-                            results[choice_index].mpn,
-                            results[choice_index].uid))
-                        uid = results[choice_index].uid
+                data = [sql_id]
+
+            for sql_id in data:
+                self.app.print("Updating: " + str(sql_id))
+
+                # Store original data
+                odbm.populate_original_data(sql_id=sql_id)
+
+                # Query Octopart with a simple search
+                search_string = odbm.dbmapping_original['Manufacturer_1'] + ' ' + \
+                                odbm.dbmapping_original['Manufacturer_Part_Number_1']
+                search = octopart.search(search_string, limit=10, include_short_description=True)
+                results = search.parts
+
+                # List results and pick one to add to the database
+                if len(results) == 0:
+                    self.app.print('No results found')
+                else:
+                    self.app.render({'results': results}, 'search-list-result.jinja2')
+
+                    if len(results) == 1:
+                        choice_word = str(0)
                     else:
-                        self.app.print('No such variant')
+                        self.app.print('Pick a [number]: ')
+                        choice_word = input()
+
+                    if choice_word.isdecimal():
+                        choice_index = int(choice_word)
+                        if 0 <= choice_index <= 9:
+                            self.app.print('Chosen: {} {} (UID {})'.format(
+                                results[choice_index].manufacturer,
+                                results[choice_index].mpn,
+                                results[choice_index].uid))
+                            uid = results[choice_index].uid
+                        else:
+                            self.app.print('No such variant')
+                            self.app.exit_code = 1
+                            self.app.close()
+                    else:
+                        # No number given, exit application
                         self.app.exit_code = 1
                         self.app.close()
-                else:
-                    # No number given, exit application
-                    self.app.exit_code = 1
-                    self.app.close()
 
-            # Query Octopart with an uid to get the single part which was requested
-            part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs', 'category_uids'])
-            odbm.spec(part)
-            odbm.suppliers(part)
-            odbm.datasheet(part)
-            odbm.update_item_database()
-            pass
+                # Query Octopart with an uid to get the single part which was requested
+                part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs', 'category_uids'])
+                odbm.spec(part)
+                odbm.suppliers(part)
+                odbm.datasheet(part, interactive=not self.app.pargs.non_interactive)
+                odbm.update_item_database(interactive=not self.app.pargs.non_interactive)
         else:
             self._default()
 

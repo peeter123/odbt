@@ -69,8 +69,7 @@ class OctopartDBMapper:
         # options.add_argument('disable-gpu')
 
         if supplier.seller == 'Farnell':
-            browser = webdriver.Chrome(options=options,
-                                       executable_path=str(
+            browser = webdriver.Chrome(executable_path=str(
                                            Path(os.path.dirname(__file__) + "/../../bin/chromedriver.exe")))
             url = 'https://nl.farnell.com/{0}'.format(supplier.sku)
             browser.get(url)
@@ -130,43 +129,54 @@ class OctopartDBMapper:
         else:
             return True
 
-    def update_item_database(self):
+    def update_item_database(self, interactive=True):
         # Preview data
         headers = ['Key', 'Original Data', 'New Data']
         table = []
         for k, v in self.dbmapping_original.items():
-            table.append((k, v, self.dbmapping_new[k]))
+            if v != self.dbmapping_new[k]:
+                table.append((k, v, self.dbmapping_new[k]))
 
-        self.app.print(tabulate(table, headers=headers))
-        accept = shell.Prompt("Execute component update?", options=['y', 'n']).prompt()
+        if len(table):
+            self.app.print(tabulate(table, headers=headers))
 
-        dbmapping_new = self._purge_empty_keys(self.dbmapping_new)
+            # Auto accept if non-interactive
+            accept = 'y'
+            if interactive:
+                accept = shell.Prompt("Execute component update?", options=['y', 'n']).prompt()
 
-        # Get possible ID
-        sql_id = dbmapping_new['dict'].pop('ID', None)
+            dbmapping_new = self._purge_empty_keys(self.dbmapping_new)
 
-        if accept == 'y':
-            # Create query from data list
-            kv_pairs = ','.join(['[{0}]=\'{1}\''.format(str(k.replace('_', ' ')),
-                                                        str(v)) for k, v in dbmapping_new['dict'].items()])
-            query = 'UPDATE [{0}] SET {1} WHERE ID={2}'.format(self.table, kv_pairs, sql_id)
-            self.app.db.execute(query)
-            self.app.db.commit()
-            self.app.print("Updating component in database")
-        else:
-            # Cleanup
-            self.app.print("No update, cleanup...")
-            if self.dbmapping_original['HelpURL'] is None:
-                self.app.print("Remove downloaded datasheet")
-                self.datasheet_file.unlink()
+            # Get possible ID
+            sql_id = dbmapping_new['dict'].pop('ID', None)
 
-    def insert_item_database(self):
+            if accept == 'y':
+                # Create query from data list
+                kv_pairs = ','.join(['[{0}]=\'{1}\''.format(str(k.replace('_', ' ')),
+                                                            str(v)) for k, v in dbmapping_new['dict'].items()])
+                query = 'UPDATE [{0}] SET {1} WHERE ID={2}'.format(self.table, kv_pairs, sql_id)
+                self.app.db.execute(query)
+                self.app.db.commit()
+                self.app.print("Updating component in database")
+            else:
+                # Cleanup
+                self.app.print("No update, cleanup...")
+                if self.dbmapping_original['HelpURL'] is None:
+                    self.app.print("Remove downloaded datasheet")
+                    self.datasheet_file.unlink()
+
+    def insert_item_database(self, interactive=True):
         dbmapping_new = self._purge_empty_keys(self.dbmapping_new)
 
         # Preview data
         self.app.print(tabulate([(k, v) for k, v in dbmapping_new['dict'].items()]))
-        accept = shell.Prompt("Execute component add?", options=['y', 'n']).prompt()
 
+        # Auto accept if non-interactive
+        accept = 'y'
+        if interactive:
+            accept = shell.Prompt("Execute component add?", options=['y', 'n'], default='y').prompt()
+
+        # Populate the database with the new data
         if accept == 'y':
             # Create query from data list
             query = 'INSERT INTO [[0}] ([{1}]) VALUES (\'{2}\')'.format(self.table,
@@ -275,59 +285,65 @@ class OctopartDBMapper:
                 self.dbmapping_new['Supplier_Part_Number_2'] = octo.offers[supplier_2_index].sku
                 self.dbmapping_new['ComponentLink2URL'] = self._fetch_supplier_link(octo.offers[supplier_2_index])
 
-    def datasheet(self, octo: octomodels.Part):
+    def datasheet(self, octo: octomodels.Part, interactive=True):
         if octo.datasheets is not None and len(octo.datasheets) != 0 and self._empty('HelpURL'):
             # Only use PDF datasheets
             datasheets = [d for d in octo.datasheets if re.match('.*\.pdf$', d)]
 
-            # Manually select datasheet and preview it in Chrome
-            is_fit = 'n'
-            datasheet_url = None
-            while is_fit != 'y':
-                datasheet_url = shell.Prompt("Pick a datasheet to preview and use')", options=datasheets, numbered=True).prompt()
-                browser = webdriver.Chrome(executable_path=str(Path(os.path.dirname(__file__) + "/../../bin/chromedriver.exe")))
-                browser.get(datasheet_url)
-                is_fit = shell.Prompt("Is the datasheet ok?", options=['y', 'n']).prompt()
-                time.sleep(0.1)
+            if len(octo.datasheets) != 0:
+                datasheet_url = None
 
-            # Download datasheet
-            if datasheet_url is not None:
-                try:
-                    lib_path = Path(os.path.dirname(self.app.config.get('odbt', 'db_path')))
-                except Exception as e:
-                    print('Config error: {0}'.format(e))
-                    print('Please make sure your config file exists and has a database path defined')
-                    exit(1)
+                # Pick first datasheet if not running in interactive mode
+                if interactive:
+                    # Manually select datasheet and preview it in Chrome
+                    is_fit = 'n'
+                    while is_fit != 'y':
+                        datasheet_url = shell.Prompt("Pick a datasheet to preview and use')", options=datasheets, numbered=True).prompt()
+                        browser = webdriver.Chrome(executable_path=str(Path(os.path.dirname(__file__) + "/../../bin/chromedriver.exe")))
+                        browser.get(datasheet_url)
+                        is_fit = shell.Prompt("Is the datasheet ok?", options=['y', 'n'], default='y').prompt()
+                        time.sleep(0.1)
                 else:
-                    datasheet_path = Path(os.path.join(lib_path, 'Components', self.table, 'Datasheets'))
+                    datasheet_url = datasheets[0]
 
-                    # Create datasheet path if it does not exists
-                    if not datasheet_path.exists():
-                        datasheet_path.mkdir(parents=True)
-
-                    # Replace illegal filename characters
-                    filename = self.dbmapping_new['Manufacturer_1'] + '_' + self.dbmapping_new['Manufacturer_Part_Number_1']
-                    illegals = ('\\', '/', ':', '*', '?', '\'', '\"', '<', '>', '|', '.', ',', ' ')
-                    for sym in illegals:
-                        filename = filename.replace(sym, '_')
-
-                    # Destination path for datasheet
-                    datasheet_file = Path(os.path.join(datasheet_path, filename + '.pdf'))
-
-                    # Fix 'HTTP Error 403' from https://stackoverflow.com/a/36663971
-                    ua = UserAgent()
-                    header = {'User-Agent': str(ua.chrome)}
-
-                    self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_path))
+                # Download datasheet
+                if datasheet_url is not None:
                     try:
-                        r = requests.get(datasheet_url, headers=header, allow_redirects=True)
-                        open(datasheet_file, 'wb').write(r.content)
+                        lib_path = Path(os.path.dirname(self.app.config.get('odbt', 'db_path')))
                     except Exception as e:
-                        self.app.print('Download failed: {0}'.format(e))
+                        print('Config error: {0}'.format(e))
+                        print('Please make sure your config file exists and has a database path defined')
+                        exit(1)
                     else:
-                        self.app.print('Download successfull')
-                        self.dbmapping_new['HelpURL'] = str(datasheet_file)
-                        self.datasheet_file = datasheet_file
+                        datasheet_path = Path(os.path.join(lib_path, 'Components', self.table, 'Datasheets'))
+
+                        # Create datasheet path if it does not exists
+                        if not datasheet_path.exists():
+                            datasheet_path.mkdir(parents=True)
+
+                        # Replace illegal filename characters
+                        filename = self.dbmapping_new['Manufacturer_1'] + '_' + self.dbmapping_new['Manufacturer_Part_Number_1']
+                        illegals = ('\\', '/', ':', '*', '?', '\'', '\"', '<', '>', '|', '.', ',', ' ')
+                        for sym in illegals:
+                            filename = filename.replace(sym, '_')
+
+                        # Destination path for datasheet
+                        datasheet_file = Path(os.path.join(datasheet_path, filename + '.pdf'))
+
+                        # Fix 'HTTP Error 403' from https://stackoverflow.com/a/36663971
+                        ua = UserAgent()
+                        header = {'User-Agent': str(ua.chrome)}
+
+                        self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_path))
+                        try:
+                            r = requests.get(datasheet_url, headers=header, allow_redirects=True)
+                            open(datasheet_file, 'wb').write(r.content)
+                        except Exception as e:
+                            self.app.print('Download failed: {0}'.format(e))
+                        else:
+                            self.app.print('Download successfull')
+                            self.dbmapping_new['HelpURL'] = str(datasheet_file)
+                            self.datasheet_file = datasheet_file
             else:
                 self.app.print('No datasheet found...')
 
