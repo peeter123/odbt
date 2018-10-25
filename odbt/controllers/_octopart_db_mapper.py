@@ -193,7 +193,7 @@ class OctopartDBMapper:
                 self.datasheet_file.unlink()
 
     def populate_original_data(self, sql_id):
-        query = 'SELECT * FROM {0} WHERE ID={1}'.format(self.table, sql_id)
+        query = 'SELECT * FROM [{0}] WHERE ID={1}'.format(self.table, sql_id)
         self.app.db.execute(query)
         row = self.app.db.fetchone()
 

@@ -137,9 +137,9 @@ class Item(Controller):
 
             if sql_id == 'all':
                 if start is not None:
-                    query = 'SELECT * FROM {0} where ID >={1}'.format(self.app.pargs.table, start)
+                    query = 'SELECT * FROM [{0}] where ID >={1}'.format(self.app.pargs.table, start)
                 else:
-                    query = 'SELECT * FROM {0}'.format(self.app.pargs.table)
+                    query = 'SELECT * FROM [{0}]'.format(self.app.pargs.table)
                 self.app.db.execute(query)
                 rows = self.app.db.fetchall()
                 data = [x.ID for x in rows]
