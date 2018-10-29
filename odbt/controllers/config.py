@@ -1,3 +1,4 @@
+import yaml
 from cement import Controller, ex
 
 class Config(Controller):
@@ -10,73 +11,26 @@ class Config(Controller):
         description = 'Use Octopart to update and add componenta to an Altium DBlib'
 
         # text displayed at the bottom of --help output
-        epilog = 'Usage: odbt config --foo bar'
+        epilog = 'Usage: odbt config show'
+
+    def _pretty(self, d, indent=0):
+        for key, value in d.items():
+            if isinstance(value, dict):
+                self.app.print('\t' * indent + str(key))
+                self._pretty(value, indent + 1)
+            else:
+                self.app.print('\t' * indent + str(key) + ' : ' + str(value))
 
     def _default(self):
         """Default action if no sub-command is passed."""
 
         self.app.args.print_help()
 
-
     @ex(
-        help='Get and set global options',
-
-        # sub-command level arguments. ex: 'odbt command1 --foo bar'
-        arguments=[
-            ### add a sample foo option under subcommand namespace
-            ( [ '-t', '--table' ],
-              { 'help' : 'The table where the item should be stored',
-                'action'  : 'store',
-                'dest' : 'foo' } ),
-        ],
+        help='Show global options',
     )
-    def get(self):
-        """Example sub-command."""
-
-        data = {
-            'foo' : 'bar',
-        }
-
-        ### do something with arguments
-        if self.app.pargs.foo is not None:
-            data['foo'] = self.app.pargs.foo
-
-        self.app.render(data, 'command1.jinja2')
-
-    @ex(
-        help='Get and set global options',
-
-        # sub-command level arguments. ex: 'odbt command1 --foo bar'
-        arguments=[
-            ### add a sample foo option under subcommand namespace
-            ( [ '-t', '--table' ],
-              { 'help' : 'The table where the item should be stored',
-                'action'  : 'store',
-                'dest' : 'foo' } ),
-        ],
-    )
-    def set(self):
-        """Example sub-command."""
-
-        data = {
-            'foo' : 'bar',
-        }
-
-        ### do something with arguments
-        if self.app.pargs.foo is not None:
-            data['foo'] = self.app.pargs.foo
-
-        self.app.render(data, 'command1.jinja2')
-
-    def list(self):
-        """List database table"""
-
-        data = {
-            'foo' : 'bar',
-        }
-
-        ### do something with arguments
-        if self.app.pargs.foo is not None:
-            data['foo'] = self.app.pargs.foo
-
-        self.app.render(data, 'command1.jinja2')
+    def show(self):
+        """Print current configuration."""
+        self.app.print('Current configuration:')
+        dict = self.app.config.get_dict()
+        self._pretty(dict)

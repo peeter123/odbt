@@ -36,6 +36,7 @@ common_col_names = \
         'Tolerance',
         'Voltage Rating',
         'Material Type',
+        'Power Rating',
         'Case Style',
         'HelpURL',
         'ComponentLink1Description',
@@ -256,6 +257,33 @@ class OctopartDBMapper:
                 value = octo.specs['case_package'].value[0]
                 self._update_if_empty('Case_Style', value)
                 self._update_if_empty('Footprint_Ref', 'C-{}'.format(value))
+
+        if 'Resistors' in [c.name for c in self.categories]:
+            self._update_if_empty('Library_Ref', 'Resistor')
+
+            if 'resistance' in octo.specs.keys():
+                value = octo.specs['resistance'].value[0]
+                suffix = octo.specs['resistance'].metadata['unit']['symbol']
+                self._update_if_empty('Value', Utils.eng_string(value, suffix=suffix))
+
+            if 'voltage_rating_dc' in octo.specs.keys():
+                value = octo.specs['voltage_rating_dc'].value[0]
+                suffix = octo.specs['voltage_rating_dc'].metadata['unit']['symbol']
+                self._update_if_empty('Voltage_Rating', Utils.eng_string(value, suffix=suffix))
+
+            if 'resistance_tolerance' in octo.specs.keys():
+                value = octo.specs['resistance_tolerance'].value[0]
+                self._update_if_empty('Tolerance', value)
+
+            if 'power_rating' in octo.specs.keys():
+                value = octo.specs['power_rating'].value[0]
+                suffix = octo.specs['power_rating'].metadata['unit']['symbol']
+                self._update_if_empty('Power_Rating', Utils.eng_string(value, suffix=suffix))
+
+            if 'case_package' in octo.specs.keys():
+                value = octo.specs['case_package'].value[0]
+                self._update_if_empty('Case_Style', value)
+                self._update_if_empty('Footprint_Ref', 'R-{}'.format(value))
 
     def suppliers(self, octo: octomodels.Part):
         """ Populate supplier fields in the database dict and try to search for links """

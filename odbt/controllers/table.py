@@ -23,10 +23,9 @@ class Table(Controller):
         # sub-command level arguments. ex: 'odbt command1 --foo bar'
         arguments=[
             ### add a sample foo option under subcommand namespace
-            ( [ '-t', '--table' ],
-              { 'help' : 'The table where the item should be stored',
-                'action'  : 'store',
-                'dest' : 'table' } ),
+            (['table'],
+             {'help': 'The table where the item should be stored',
+              'action': 'store'}),
         ],
     )
     def list(self):
