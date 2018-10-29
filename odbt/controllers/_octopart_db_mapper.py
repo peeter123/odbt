@@ -179,7 +179,7 @@ class OctopartDBMapper:
         # Populate the database with the new data
         if accept == 'y':
             # Create query from data list
-            query = 'INSERT INTO [[0}] ([{1}]) VALUES (\'{2}\')'.format(self.table,
+            query = 'INSERT INTO [{0}] ([{1}]) VALUES (\'{2}\')'.format(self.table,
                                                                       '], ['.join(dbmapping_new['keys']),
                                                                       '\', \''.join(dbmapping_new['values']))
             self.app.db.execute(query)
