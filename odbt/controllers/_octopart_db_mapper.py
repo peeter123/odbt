@@ -314,13 +314,15 @@ class OctopartDBMapper:
                 self.dbmapping_new['ComponentLink2URL'] = self._fetch_supplier_link(octo.offers[supplier_2_index])
 
     def datasheet(self, octo: octomodels.Part, interactive=True):
-        if octo.datasheets is not None and len(octo.datasheets) != 0 and self._empty('HelpURL'):
+        datasheet_url = None
+
+        #Only run if we have no datasheet yet
+        if self._empty('HelpURL'):
             # Only use PDF datasheets
-            datasheets = [d for d in octo.datasheets if re.match('.*\.pdf$', d)]
+            if octo.datasheets is not None and len(octo.datasheets) != 0:
+                datasheets = [d for d in octo.datasheets if re.match('.*\.pdf$', d)]
 
-            if len(octo.datasheets) != 0:
-                datasheet_url = None
-
+            if octo.datasheets is not None and len(octo.datasheets) != 0:
                 # Pick first datasheet if not running in interactive mode
                 if interactive:
                     # Manually select datasheet and preview it in Chrome
@@ -333,45 +335,56 @@ class OctopartDBMapper:
                         time.sleep(0.1)
                 else:
                     datasheet_url = datasheets[0]
+            else:
+                # Ask for datasheet URL
+                self.app.print('No datasheet found...')
+                is_fit = 'n'
+                while is_fit != 'y':
+                    datasheet_url = shell.Prompt('Manually enter an URL:', default="break").prompt()
+                    if re.match('.*\.pdf$', datasheet_url):
+                        is_fit = 'y'
+                    if datasheet_url == 'break':
+                        datasheet_url = None
+                        break
 
-                # Download datasheet
-                if datasheet_url is not None:
+            # Download datasheet
+            if datasheet_url is not None:
+                try:
+                    lib_path = Path(os.path.dirname(self.app.config.get('odbt', 'db_path')))
+                except Exception as e:
+                    print('Config error: {0}'.format(e))
+                    print('Please make sure your config file exists and has a database path defined')
+                    exit(1)
+                else:
+                    datasheet_path = Path(os.path.join(lib_path, 'Components', self.table, 'Datasheets'))
+
+                    # Create datasheet path if it does not exists
+                    if not datasheet_path.exists():
+                        datasheet_path.mkdir(parents=True)
+
+                    # Replace illegal filename characters
+                    filename = self.dbmapping_new['Manufacturer_1'] + '_' + self.dbmapping_new['Manufacturer_Part_Number_1']
+                    illegals = ('\\', '/', ':', '*', '?', '\'', '\"', '<', '>', '|', '.', ',', ' ')
+                    for sym in illegals:
+                        filename = filename.replace(sym, '_')
+
+                    # Destination path for datasheet
+                    datasheet_file = Path(os.path.join(datasheet_path, filename + '.pdf'))
+
+                    # Fix 'HTTP Error 403' from https://stackoverflow.com/a/36663971
+                    ua = UserAgent()
+                    header = {'User-Agent': str(ua.chrome)}
+
+                    self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_path))
                     try:
-                        lib_path = Path(os.path.dirname(self.app.config.get('odbt', 'db_path')))
+                        r = requests.get(datasheet_url, headers=header, allow_redirects=True)
+                        open(datasheet_file, 'wb').write(r.content)
                     except Exception as e:
-                        print('Config error: {0}'.format(e))
-                        print('Please make sure your config file exists and has a database path defined')
-                        exit(1)
+                        self.app.print('Download failed: {0}'.format(e))
                     else:
-                        datasheet_path = Path(os.path.join(lib_path, 'Components', self.table, 'Datasheets'))
-
-                        # Create datasheet path if it does not exists
-                        if not datasheet_path.exists():
-                            datasheet_path.mkdir(parents=True)
-
-                        # Replace illegal filename characters
-                        filename = self.dbmapping_new['Manufacturer_1'] + '_' + self.dbmapping_new['Manufacturer_Part_Number_1']
-                        illegals = ('\\', '/', ':', '*', '?', '\'', '\"', '<', '>', '|', '.', ',', ' ')
-                        for sym in illegals:
-                            filename = filename.replace(sym, '_')
-
-                        # Destination path for datasheet
-                        datasheet_file = Path(os.path.join(datasheet_path, filename + '.pdf'))
-
-                        # Fix 'HTTP Error 403' from https://stackoverflow.com/a/36663971
-                        ua = UserAgent()
-                        header = {'User-Agent': str(ua.chrome)}
-
-                        self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_path))
-                        try:
-                            r = requests.get(datasheet_url, headers=header, allow_redirects=True)
-                            open(datasheet_file, 'wb').write(r.content)
-                        except Exception as e:
-                            self.app.print('Download failed: {0}'.format(e))
-                        else:
-                            self.app.print('Download successfull')
-                            self.dbmapping_new['HelpURL'] = str(datasheet_file)
-                            self.datasheet_file = datasheet_file
+                        self.app.print('Download successfull')
+                        self.dbmapping_new['HelpURL'] = str(datasheet_file)
+                        self.datasheet_file = datasheet_file
             else:
                 self.app.print('No datasheet found...')
 
