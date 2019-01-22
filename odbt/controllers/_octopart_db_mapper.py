@@ -86,7 +86,7 @@ class OctopartDBMapper:
                     return url
                 time.sleep(1)
         elif supplier.seller == 'Digi-Key':
-            result = google.search('{} - {}'.format(supplier.seller, supplier.sku))
+            result = google.search('{} - {} site:{}'.format('Digi-Key', supplier.sku, 'digikey.com'))
             return result[0].link
         # Fallback to Octopart redirect URL
         else:
