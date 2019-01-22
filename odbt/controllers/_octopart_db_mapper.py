@@ -63,6 +63,11 @@ class OctopartDBMapper:
             self.dbmapping_original[col.replace(' ', '_')] = None
             self.dbmapping_new[col.replace(' ', '_')] = None
 
+    def _replace_special_chars(self, text: str):
+        specialharsDictionary = {u'Ü': 'U', u'ü': 'u'}
+        umap = {ord(key): val for key, val in specialharsDictionary.items()}
+        return text.translate(umap)
+
 
     def _fetch_supplier_link(self, supplier: octomodels.PartOffer):
         options = webdriver.ChromeOptions()
@@ -215,9 +220,9 @@ class OctopartDBMapper:
 
         # Independent fields
         self._update_if_empty('Description', octo.short_description)
-        self._update_if_empty('Manufacturer_1', octo.manufacturer.upper())
+        self._update_if_empty('Manufacturer_1', self._replace_special_chars(octo.manufacturer.upper()))
         self._update_if_empty('Manufacturer_Part_Number_1', octo.mpn)
-        self._update_if_empty('Designer', 'P. Oostewechel')
+        self._update_if_empty('Designer', self.config.get('odbt', 'db_designer'))
         self._update_if_empty('Creation_Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
         # Optional fields
