@@ -339,7 +339,11 @@ class OctopartDBMapper:
                         datasheet_url = shell.Prompt("Pick a datasheet to preview and use')", options=datasheets, numbered=True).prompt()
                         browser = webdriver.Chrome(executable_path=str(Path(os.path.dirname(__file__) + "/../../bin/chromedriver.exe")))
                         browser.get(datasheet_url)
-                        is_fit = shell.Prompt("Is the datasheet ok?", options=['y', 'n'], default='y').prompt()
+                        is_fit = shell.Prompt("Is the datasheet ok? (press m for manual url)", options=['y', 'n', 'm'], default='y').prompt()
+                        if is_fit == 'm':
+                            datasheet_url = shell.Prompt('Manually enter an URL:', default="break").prompt()
+                            if re.match('.*\.pdf$', datasheet_url):
+                                is_fit = 'y'
                         time.sleep(0.1)
                 else:
                     datasheet_url = datasheets[0]
