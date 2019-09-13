@@ -1,0 +1,5 @@
+Search Results:
+{% for result in results %} [{{ loop.index0 }}] {{ result.manufacturer }} {{ result.mpn }} {{ result.description_product }} [{{ result.moq }}]
+    {% for offer in result.standard_pricing[:5] %} {{ offer.breakquantity }} | {{ offer.unitprice }} [STOCK {{ result.in_stock }}]
+    {% endfor %}
+{% endfor %}

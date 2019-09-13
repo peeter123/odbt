@@ -4,7 +4,8 @@
 # Application YML files
 config/*.yml
 
-# Python temp files
+# (Python) temp files
 *.egg-info
 env/
 __pycache__/
+cache/

@@ -21,6 +21,11 @@ odbt:
   ### Octopart API key to access the Octopart V3 API
   octopart_api_key: 'xxxxxxx'
 
+  ### Digikey API key to access the Digikey API
+  digikey_client_id: 'xxxxxxx'
+  digikey_client_secret: 'xxxxxxx'
+  digikey_cache_directory: 'C:\path\to\cache'
+
   ### Altium DBLib Access Database path
   db_path: 'C:\DB Library\database.mdb'
 

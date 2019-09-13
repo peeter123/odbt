@@ -13,6 +13,25 @@ from .controllers.table import Table
 # configuration defaults
 CONFIG = init_defaults('odbt')
 
+def setup_digikey_environment(app):
+    try:
+        client_id = app.config.get('odbt', 'digikey_client_id')
+        client_secret = app.config.get('odbt', 'digikey_client_secret')
+        cache_dir = app.config.get('odbt', 'digikey_cache_directory')
+    except Exception as e:
+        print('Config error: {0}'.format(e))
+        print('Please make sure your config file exists and have the digikey setup defined')
+        exit(1)
+    else:
+        os.environ['DIGIKEY_CLIENT_ID'] = client_id
+        os.environ['DIGIKEY_CLIENT_SECRET'] = client_secret
+
+        # Create cache directory if it does not exist
+        cache_dir = Path(cache_dir)
+        if not cache_dir.is_dir():
+            cache_dir.mkdir(parents=True)
+
+        os.environ['DIGIKEY_STORAGE_PATH'] = str(cache_dir)
 
 def extend_access_db(app):
     # Check if MS Access DB connector is installed
@@ -83,6 +102,7 @@ class Odbt(App):
         ]
 
         hooks = [
+            ('post_setup', setup_digikey_environment),
             ('post_setup', extend_access_db),
             ('post_setup', extend_octopart_api),
         ]

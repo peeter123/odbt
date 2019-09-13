@@ -1,6 +1,8 @@
+import digikey
 import octopart
 from tabulate import tabulate
 from ._octopart_db_mapper import OctopartDBMapper
+from ._digikey_db_mapper import DigikeyDBMapper
 from cement import Controller, ex, shell
 
 class Item(Controller):
@@ -26,6 +28,10 @@ class Item(Controller):
              {'help': 'Run in non-interactive mode',
               'action': 'store_true',
               'dest': 'non_interactive'}),
+            (['-p', '--provider'],
+             {'help': 'digikey or octopart',
+              'action': 'store',
+              'dest': 'provider'}),
         ]
 
     def _default(self):
@@ -53,50 +59,97 @@ class Item(Controller):
         ],
     )
     def add(self):
-        """ Search octopart with query and interactively add result"""
+        """ Search the selected provider with query and interactively add result"""
         self._check_table_valid()
-        odbm = OctopartDBMapper(self.app, self.app.pargs.table)
+        provider = self.app.pargs.provider
+
+        if provider is None or (provider != 'digikey' and provider != 'octopart'):
+            self.app.print('Please provide the correct search provider name')
+            self.app.exit_code = 1
+            self.app.close()
 
         if self.app.pargs.query is not None:
             query = self.app.pargs.query
             self.app.print("Searching for: " + query)
 
-            # Query Octopart with a simple search
-            search = octopart.search(query, limit=10, include_short_description=True)
-            results = search.parts
+            if provider == 'octopart':
+                odbm = OctopartDBMapper(self.app, self.app.pargs.table)
 
-            # List results and pick one to add to the database
-            if len(results) == 0:
-                self.app.print('No results found')
-                self.app.exit_code = 1
-                self.app.close()
-            else:
-                self.app.render({'results': results}, 'search-list-result.jinja2')
-                self.app.print('Pick a [number]: ')
-                choice_word = input()
-                if choice_word.isdecimal():
-                    choice_index = int(choice_word)
-                    if 0 <= choice_index <= 9:
-                        self.app.print('Chosen: {} {} (UID {})'.format(
-                            results[choice_index].manufacturer,
-                            results[choice_index].mpn,
-                            results[choice_index].uid))
-                        uid = results[choice_index].uid
-                    else:
-                        self.app.print('No such variant')
-                        self.app.exit_code = 1
-                        self.app.close()
-                else:
-                    # No number given, exit application
+                # Query Octopart with a simple search
+                search = octopart.search(query, limit=10)
+                results = search.parts
+
+                # List results and pick one to add to the database
+                if len(results) == 0:
+                    self.app.print('No results found')
                     self.app.exit_code = 1
                     self.app.close()
+                else:
+                    self.app.render({'results': results}, 'search-list-result-octo.jinja2')
+                    self.app.print('Pick a [number]: ')
+                    choice_word = input()
+                    if choice_word.isdecimal():
+                        choice_index = int(choice_word)
+                        if 0 <= choice_index <= 9:
+                            self.app.print('Chosen: {} {} (UID {})'.format(
+                                results[choice_index].manufacturer,
+                                results[choice_index].mpn,
+                                results[choice_index].uid))
+                            uid = results[choice_index].uid
+                        else:
+                            self.app.print('No such variant')
+                            self.app.exit_code = 1
+                            self.app.close()
+                    else:
+                        # No number given, exit application
+                        self.app.exit_code = 1
+                        self.app.close()
 
-            # Query Octopart with an uid to get the single part which was requested
-            part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs', 'category_uids'])
-            odbm.spec(part)
-            odbm.suppliers(part)
-            odbm.datasheet(part)
-            odbm.insert_item_database()
+                    # Query Octopart with an uid to get the single part which was requested
+                    part = octopart.part(uid, includes=['datasheets', 'short_description', 'description', 'specs', 'category_uids'])
+                    odbm.spec(part)
+                    odbm.suppliers(part)
+                    odbm.datasheet(part)
+                    odbm.insert_item_database()
+            elif provider == 'digikey':
+                odbm = DigikeyDBMapper(self.app, self.app.pargs.table)
+                part = None
+
+                # Query Digikey with a simple search
+                search = digikey.search(query, limit=10)
+                results = search.parts
+
+                # List results and pick one to add to the database
+                if len(results) == 0:
+                    self.app.print('No results found')
+                    self.app.exit_code = 1
+                    self.app.close()
+                else:
+                    self.app.render({'results': results}, 'search-list-result-digikey.jinja2')
+                    self.app.print('Pick a [number]: ')
+                    choice_word = input()
+                    if choice_word.isdecimal():
+                        choice_index = int(choice_word)
+                        if 0 <= choice_index <= 9:
+                            self.app.print('Chosen: {} {} (UID {})'.format(
+                                results[choice_index].manufacturer,
+                                results[choice_index].mpn,
+                                results[choice_index].digikey_pn))
+                            part = results[choice_index]
+                        else:
+                            self.app.print('No such variant')
+                            self.app.exit_code = 1
+                            self.app.close()
+                    else:
+                        # No number given, exit application
+                        self.app.exit_code = 1
+                        self.app.close()
+
+                    # Fill data of the single part which was requested
+                    odbm.spec(part)
+                    odbm.suppliers(part)
+                    odbm.datasheet(part)
+                    odbm.insert_item_database()
             pass
         else:
             self._default()
@@ -152,7 +205,7 @@ class Item(Controller):
                 if len(results) == 0:
                     self.app.print('No results found')
                 else:
-                    self.app.render({'results': results}, 'search-list-result.jinja2')
+                    self.app.render({'results': results}, 'search-list-result-octo.jinja2')
 
                     if len(results) == 1:
                         choice_word = str(0)
@@ -212,4 +265,4 @@ class Item(Controller):
                 self.app.exit_code = 1
                 self.app.close()
             else:
-                self.app.render({'results': results}, 'search-list-result.jinja2')
+                self.app.render({'results': results}, 'search-list-result-octo.jinja2')
