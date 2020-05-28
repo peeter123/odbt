@@ -1,7 +1,8 @@
 import math
 
 class Utils:
-    def eng_string(x, sig_figs=2, si=True, suffix=None):
+    @classmethod
+    def eng_string(cls, x, sig_figs=2, si=True, suffix=None):
         """
         Returns float/int value <x> formatted in a simplified engineering format -
         using an exponent that is a multiple of 3.
@@ -36,3 +37,30 @@ class Utils:
             exp3_text = 'e%s' % exp3
 
         return ('%s%s%s%s') % (sign, x3, exp3_text, suffix)
+
+    @classmethod
+    def remove_umlaut(cls, string):
+        """
+        Removes umlauts from strings and replaces them with the letter+e convention
+        :param string: string to remove umlauts from
+        :return: unumlauted string
+        """
+        u = 'ü'.encode()
+        U = 'Ü'.encode()
+        a = 'ä'.encode()
+        A = 'Ä'.encode()
+        o = 'ö'.encode()
+        O = 'Ö'.encode()
+        ss = 'ß'.encode()
+
+        string = string.encode()
+        string = string.replace(u, b'u')
+        string = string.replace(U, b'U')
+        string = string.replace(a, b'a')
+        string = string.replace(A, b'A')
+        string = string.replace(o, b'o')
+        string = string.replace(O, b'O')
+        string = string.replace(ss, b'ss')
+
+        string = string.decode('utf-8')
+        return string

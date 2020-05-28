@@ -286,6 +286,8 @@ class DBMapper:
                 for sym in illegals:
                     filename = filename.replace(sym, '_')
 
+                filename = Utils.remove_umlaut(filename)
+
                 # Destination path for datasheet
                 datasheet_file = Path(os.path.join(datasheet_path, filename + '.pdf'))
 
@@ -293,7 +295,7 @@ class DBMapper:
                 ua = UserAgent()
                 header = {'User-Agent': str(ua.ie)}
 
-                self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_path))
+                self.app.print('Downloading pdf from {0} to {1}'.format(datasheet_url, datasheet_file))
                 try:
                     r = requests.get(datasheet_url, headers=header, allow_redirects=True, timeout=5)
                     r.raise_for_status()
