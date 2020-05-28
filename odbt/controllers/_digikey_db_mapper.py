@@ -6,6 +6,7 @@ from fake_useragent import UserAgent
 from ._db_mapper import DBMapper
 from ._utils import Utils
 from google import google
+import re
 
 
 class DigikeyDBMapper(DBMapper):
@@ -90,13 +91,25 @@ class DigikeyDBMapper(DBMapper):
         try:
             # Get the supplier names from the configuration store
             supplier_1 = self.config.get('odbt', 'db_supplier_1')
+            supplier_1_url = self.config.get('odbt', 'db_supplier_1_base_url')
             supplier_2 = self.config.get('odbt', 'db_supplier_2')
+            supplier_2_url = self.config.get('odbt', 'db_supplier_2_base_url')
         except Exception as e:
-            print('Config error: {0}'.format(e))
-            print('Please make sure your config file exists and has an API key')
+            self.app.print('Config error: {0}'.format(e))
+            self.app.print('Please make sure your config file exists and has an API key')
             exit(1)
         else:
+            self.app.print('Populating Supplier Information...')
             # Populate data for first supplier
+            if supplier_1 == 'Farnell':
+                self.dbmapping_new['Supplier_1'] = supplier_1
+                self.dbmapping_new['ComponentLink1Description'] = '&{0!s} product page'.format(supplier_1)
+                if self._empty('Supplier_Part_Number_1') or self._empty('ComponentLink1URL'):
+                    data = self._search_supplier_data(supplier_1, supplier_1_url, dkp)
+                    if data:
+                        self.dbmapping_new['Supplier_Part_Number_1'] = data['sku']
+                        self.dbmapping_new['ComponentLink1URL'] = data['url']
+
             if supplier_1 == 'Digi-Key':
                 self.dbmapping_new['Supplier_1'] = supplier_1
                 self.dbmapping_new['ComponentLink1Description'] = '&{0!s} product page'.format(supplier_1)
@@ -105,6 +118,15 @@ class DigikeyDBMapper(DBMapper):
                     self.dbmapping_new['ComponentLink1URL'] = dkp.digikey_url
 
             # Populate data for second supplier
+            if supplier_2 == 'Farnell':
+                self.dbmapping_new['Supplier_2'] = supplier_2
+                self.dbmapping_new['ComponentLink2Description'] = '&{0!s} product page'.format(supplier_2)
+                if self._empty('Supplier_Part_Number_2') or self._empty('ComponentLink2URL'):
+                    data = self._search_supplier_data(supplier_2, supplier_2_url, dkp)
+                    if data:
+                        self.dbmapping_new['Supplier_Part_Number_2'] = data['sku']
+                        self.dbmapping_new['ComponentLink2URL'] = data['url']
+
             if supplier_2 == 'Digi-Key':
                 self.dbmapping_new['Supplier_2'] = supplier_2
                 self.dbmapping_new['ComponentLink2Description'] = '&{0!s} product page'.format(supplier_2)

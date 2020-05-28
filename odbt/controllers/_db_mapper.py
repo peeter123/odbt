@@ -77,7 +77,29 @@ class DBMapper:
         umap = {ord(key): val for key, val in specialharsDictionary.items()}
         return text.translate(umap)
 
-    def _fetch_supplier_link(self, supplier: octomodels.PartOffer):
+    def _search_supplier_data(self, supplier, url, data):
+        info = {'url': None,
+                'sku': None}
+
+        if supplier == 'Farnell':
+            self.app.print('Searching Farnell...')
+            result = google.search('{} - {} site:{}'.format('Farnell', data.mpn, url))
+            if not result:
+                return None
+
+            for i, val in enumerate(result):
+                self.app.print(f'{i} {val.link}')
+            self.app.print('Pick a result [number]: ')
+            choice_word = input()
+            if choice_word.isdecimal():
+                choice_index = int(choice_word)
+                info['url'] = result[choice_index].link.strip('RL')
+                info['sku'] = re.search('.*/(\d*)', info['url']).group(1)
+                return info
+        else:
+            return None
+
+    def _fetch_supplier_link(self, supplier):
         pass
 
     def _find_seller(self, octo: octomodels.Part, name: str):
