@@ -3,7 +3,9 @@
 ## Installation
 
 ```
+$ virtualenv --prompt '|> odbt <| ' env
 $ pip install -r requirements.txt
+$ setup.py develop
 ```
 
 ## Usage
