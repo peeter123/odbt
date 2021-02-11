@@ -1,6 +1,6 @@
 import os, time, re
 import requests
-import octopart
+from selenium.common.exceptions import WebDriverException
 from tabulate import tabulate
 from pathlib import Path
 from octopart import models as octomodels
@@ -10,7 +10,9 @@ from selenium.webdriver.chrome.options import Options
 from cement import App, shell
 from fake_useragent import UserAgent
 from ._utils import Utils
-from google import google
+from search_engine_parser.core.engines.google import Search as GoogleSearch
+from search_engine_parser.core.engines.duckduckgo import Search as DuckSearch
+from urllib.parse import urlsplit, parse_qs
 
 common_col_names = \
        ('ID',
@@ -45,6 +47,7 @@ common_col_names = \
         'ComponentLink2Description',
         'ComponentLink2URL')
 
+
 class DBMapper:
     def __init__(self, app: App, table):
 
@@ -69,6 +72,8 @@ class DBMapper:
         chrome_options.add_argument('--silent')
         chrome_options.add_argument('--log-level=3')
         chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        if Path(self.app.config.get('odbt', 'browser_path')):
+            chrome_options.binary_location = self.app.config.get('odbt', 'browser_path')
         return webdriver.Chrome(chrome_options=chrome_options,
                                 executable_path=str(Path(os.path.dirname(__file__) + "/../../bin/chromedriver.exe")))
 
@@ -77,23 +82,34 @@ class DBMapper:
         umap = {ord(key): val for key, val in specialharsDictionary.items()}
         return text.translate(umap)
 
-    def _search_supplier_data(self, supplier, url, data):
+    def _search_supplier_data(self, supplier, url, mpn):
         info = {'url': None,
                 'sku': None}
 
+        dsearch = DuckSearch()
+
         if supplier == 'Farnell':
             self.app.print('Searching Farnell...')
-            result = google.search('{} - {} site:{}'.format('Farnell', data.mpn, url))
-            if not result:
+            try:
+                search_results = dsearch.search(f'Farnell {mpn} site:{url}')
+            except Exception as e:
                 return None
 
-            for i, val in enumerate(result):
-                self.app.print(f'{i} {val.link}')
-            self.app.print('Pick a result [number]: ')
+            if not search_results:
+                return None
+
+            results = [result for result in search_results]
+
+            for i, val in enumerate(results):
+                # params = parse_qs(urlsplit(val['links']).query)
+                # results[i]['q_params'] = params
+                self.app.print(f'{i} {val.get("links", None)}')
+
+            self.app.print('Pick a result [number, or none to cancel]: ')
             choice_word = input()
             if choice_word.isdecimal():
                 choice_index = int(choice_word)
-                info['url'] = result[choice_index].link.strip('RL')
+                info['url'] = results[choice_index]['links'].strip('RL')
                 info['sku'] = re.search('.*/(\d*)', info['url']).group(1)
                 return info
         else:
@@ -260,12 +276,16 @@ class DBMapper:
                     try:
                         browser = self._webdriver()
                         browser.get(datasheet_url)
-                        while True:
+                        count = 5
+                        while count > 0:
+                            self.app.print(f'Waiting for datasheet to load... {count} s remaining')
                             if '.pdf' in browser.current_url:
-                                datasheet_url = browser.current_url
+                                split_url = urlsplit(browser.current_url)
+                                datasheet_url = f'{split_url.scheme}://{split_url.netloc}{split_url.path}'
                                 break
                             time.sleep(1)
-                    except:
+                            count -= 1
+                    except WebDriverException as e:
                         pass
                     is_fit = shell.Prompt("Is the datasheet ok? (press m for manual url)", options=['y', 'n', 'm'], default='y').prompt()
                     if is_fit == 'm':

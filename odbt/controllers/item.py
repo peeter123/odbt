@@ -1,4 +1,5 @@
 import digikey
+from digikey.v3.productinformation import KeywordSearchRequest
 import octopart
 from tabulate import tabulate
 from ._octopart_db_mapper import OctopartDBMapper
@@ -116,8 +117,9 @@ class Item(Controller):
                 part = None
 
                 # Query Digikey with a simple search
-                search = digikey.search(query, limit=10)
-                results = search.parts
+                search_query = KeywordSearchRequest(keywords=query, record_count=10)
+                search = digikey.keyword_search(body=search_query)
+                results = search.products
 
                 # List results and pick one to add to the database
                 if len(results) == 0:
@@ -130,11 +132,11 @@ class Item(Controller):
                     choice_word = input()
                     if choice_word.isdecimal():
                         choice_index = int(choice_word)
-                        if 0 <= choice_index <= 9:
+                        if 0 <= choice_index < len(results):
                             self.app.print('Chosen: {} {} (UID {})'.format(
-                                results[choice_index].manufacturer,
-                                results[choice_index].mpn,
-                                results[choice_index].digikey_pn))
+                                results[choice_index].manufacturer.value,
+                                results[choice_index].manufacturer_part_number,
+                                results[choice_index].digi_key_part_number))
                             part = results[choice_index]
                         else:
                             self.app.print('No such variant')

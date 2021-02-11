@@ -10,7 +10,6 @@ from cement import App, shell
 from fake_useragent import UserAgent
 from ._utils import Utils
 from ._db_mapper import DBMapper
-from google import google
 
 
 class OctopartDBMapper(DBMapper):
@@ -19,6 +18,8 @@ class OctopartDBMapper(DBMapper):
         options = webdriver.ChromeOptions()
         # options.add_argument('headless')
         # options.add_argument('disable-gpu')
+
+        gsearch = GoogleSearch()
 
         if supplier.seller == 'Farnell':
             browser = webdriver.Chrome(executable_path=str(
@@ -32,7 +33,7 @@ class OctopartDBMapper(DBMapper):
                     return url
                 time.sleep(1)
         elif supplier.seller == 'Digi-Key':
-            result = google.search('{} - {} site:{}'.format('Digi-Key', supplier.sku, 'digikey.com'))
+            result = gsearch.search('{} - {} site:{}'.format('Digi-Key', supplier.sku, 'digikey.com'))
             if len(result):
                 return result[0].link
             else:

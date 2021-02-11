@@ -12,7 +12,7 @@ $ setup.py develop
 ODBT is a CLI application which can be used from the command line.
 
 ### Requirements
-You need to setup an Altium DBLib structure + database. Furthermore you request an Octopart API key.
+You need to setup an Altium DBLib structure + database. Furthermore you request an Octopart or Digi-Key API key.
 
 The required directory structure is shown below:
 
@@ -27,6 +27,8 @@ Components\
 Database.mdb
 Database.DbLib
 ```
+
+For previewing links and datasheets Google Chrome is required.
 
 ### Configuration
  Before you can use the application you need to setup the config file in the config directory. 

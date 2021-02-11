@@ -18,22 +18,19 @@ odbt:
   ### The output handler label
   # output_handler: jinja2
 
-  ### Chrome or derivative browser path
-  browser_path = 'C:/Program Files (x86)/BraveSoftware/Brave-Browser/Application/brave.exe'
-
   ### Octopart API key to access the Octopart V3 API
-  octopart_api_key: 'xxxxxxx'
+  octopart_api_key: '69ec4b8e'
 
   ### Digikey API key to access the Digikey API
-  digikey_client_id: 'xxxxxxx'
-  digikey_client_secret: 'xxxxxxx'
-  digikey_cache_directory: 'C:\path\to\cache'
+  digikey_client_id: '293d958a-cc1d-44e6-9a84-742c8ca27b0e'
+  digikey_client_secret: 'sH5wR2pJ0yP7nP8tO7pR8vO3wW1mG3mD6xT2aJ8aV7jX6gW6bR'
+  digikey_cache_directory: 'D:\Work\GIT\altium-dblib-octopart-populator\cache'
 
   ### Altium DBLib Access Database path
-  db_path: 'C:\DB Library\database.mdb'
+  db_path: 'C:\Work\Altium_Data\ICT Library\ICT.mdb'
 
   ### Standard database fields
-  db_designer: 'peeter123'
+  db_designer: 'P. Oostewechel'
 
   ### Supplier choices for standard Altium database fields
   db_supplier_1: 'Farnell'
